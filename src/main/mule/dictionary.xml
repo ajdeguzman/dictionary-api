@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="fc45d9a3-dff5-4243-b49d-c1b105a79958" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="25e7140d-a439-45a5-bb8f-28c2dfa60d1f" basePath="${base_path}" >
+		<http:request-connection protocol="HTTPS" host="${host}" port="${port}" />
+	</http:request-config>
+	<configuration-properties doc:name="Configuration properties" doc:id="6b4c2291-bb4c-4549-bb38-6b0c77d5d147" file="app-${env}.properties" />
+	<global-property doc:name="Global Property" doc:id="9a87e209-4966-4a8b-8fbf-af52419877ec" name="env" value="prod" />
+	<validation:config name="Validation_Config" doc:name="Validation Config" doc:id="1ddb199f-7624-4709-8fbf-c6874415ef11" />
+	<flow name="dictionaryFlow" doc:id="a06c3019-c347-4935-931a-7bfcff72155c" >
+		<http:listener doc:name="Listener" doc:id="bfd99357-a595-4c35-97af-c2945b17f67e" path="/dictionary/{word}" config-ref="HTTP_Listener_config"/>
+		<set-variable value="#[attributes.uriParams.word]" doc:name="Set Variable" doc:id="a723625a-2772-4275-a398-670a24895584" variableName="word"/>
+		<validation:is-email doc:name="Is email" doc:id="64ed4645-1114-4760-a904-512c156fef90" email="email@email.com" message="This is an invalid email" config-ref="Validation_Config"/>
+		<scatter-gather doc:name="Scatter-Gather" doc:id="a41b81d5-e52b-430a-ba6d-060f16ad4a54" >
+			<route >
+				<http:request method="GET" doc:name="First Request" doc:id="af9add41-adb7-42c3-91de-fedadf88a607" config-ref="HTTP_Request_configuration" path="/{word}">
+			<http:uri-params><![CDATA[#[output application/java
+---
+{
+	"word" : attributes.uriParams.word
+}]]]></http:uri-params>
+			<http:query-params><![CDATA[#[output application/java
+---
+{
+	"key" : "43793ac9-7d1f-40cc-81b8-27a688c12f66"
+}]]]></http:query-params>
+		</http:request>
+				<ee:transform doc:name="Transform Message" doc:id="0aa5e04d-8b23-45ff-9eba-a4d1f738b63e" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+((payload..dt[0])[0])[1]]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</route>
+			<route >
+				<http:request method="GET" doc:name="Second Request" doc:id="2b24f57a-3825-4f37-bb05-e81be7c67665" config-ref="HTTP_Request_configuration" path="/{word}">
+					<http:uri-params><![CDATA[#[output application/java
+---
+{
+	"word" : attributes.uriParams.word
+}]]]></http:uri-params>
+					<http:query-params><![CDATA[#[output application/java
+---
+{
+	"key" : "43793ac9-7d1f-40cc-81b8-27a688c12f66"
+}]]]></http:query-params>
+				</http:request>
+				<ee:transform doc:name="Transform Message" doc:id="59b7c386-1a7a-479f-81ec-5fc678eed52f" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+((payload..dt[0])[0])[1]]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</route>
+		</scatter-gather>
+		<ee:transform doc:name="Transform Message" doc:id="560d2dab-365a-429a-84de-b88fd79c26b5" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>
